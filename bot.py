@@ -3,6 +3,16 @@ from datetime import datetime, timedelta
 from telegram import Update, Chat
 from telegram.ext import ApplicationBuilder, MessageHandler, filters, ContextTypes
 import os
+def escape_markdown(text: str) -> str:
+    """
+    Escape all Markdown special characters to prevent formatting issues.
+    """
+    if not text:
+        return ""
+    escape_chars = "\\_*[]()~`>#+-=|{}.!"
+    for char in escape_chars:
+        text = text.replace(char, f"\\{char}")
+    return text
 
 # ===== CONFIG =====
 TOKEN = os.environ.get("BOT_TOKEN")
