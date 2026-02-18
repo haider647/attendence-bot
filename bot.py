@@ -60,15 +60,20 @@ async def clear(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("🗑 Attendance cleared successfully.")
 
 # ====== MAIN ======
+from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler
+
 def main():
     app = ApplicationBuilder().token(TOKEN).build()
+
     app.add_handler(CommandHandler("start_attendance", start_attendance))
     app.add_handler(CommandHandler("report", report))
     app.add_handler(CommandHandler("clear", clear))
     app.add_handler(CallbackQueryHandler(mark_attendance))
+
     print("Bot is running...")
-    # Polling works safely in Railway free
+    # Polling works safely in Railway free tier
     app.run_polling(poll_interval=3, timeout=60)
 
-
+# ✅ Correct indentation here
 if __name__ == "__main__":
+    main()
