@@ -6,7 +6,7 @@ import os
 
 # ===== CONFIG =====
 TOKEN = os.environ.get("BOT_TOKEN")
-OWNER_ID = 123456789  # <-- अपना Telegram numeric user ID डालें
+OWNER_ID = 7966395775  # <-- अपना Telegram numeric user ID डालें
 
 attendance_data = {}  # {chat_id: {"open": bool, "users": {}}}
 
