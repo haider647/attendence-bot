@@ -3,16 +3,6 @@ from datetime import datetime, timedelta
 from telegram import Update, Chat
 from telegram.ext import ApplicationBuilder, MessageHandler, filters, ContextTypes
 import os
-def escape_markdown(text: str) -> str:
-    """
-    Escape all Markdown special characters to prevent formatting issues.
-    """
-    if not text:
-        return ""
-    escape_chars = "\\_*[]()~`>#+-=|{}.!"
-    for char in escape_chars:
-        text = text.replace(char, f"\\{char}")
-    return text
 
 # ===== CONFIG =====
 TOKEN = os.environ.get("BOT_TOKEN")
@@ -29,7 +19,12 @@ def pakistan_time():
 
 # ===== ESCAPE MARKDOWN =====
 def escape_markdown(text: str) -> str:
-    escape_chars = r"\_*[]()~>#+-=|{}.!"
+    """
+    Escape all Markdown special characters to prevent formatting issues.
+    """
+    if not text:
+        return ""
+    escape_chars = "\\_*[]()~`>#+-=|{}.!"
     for char in escape_chars:
         text = text.replace(char, f"\\{char}")
     return text
@@ -39,7 +34,7 @@ async def is_admin(update: Update):
     try:
         member = await update.effective_chat.get_member(update.effective_user.id)
         return member.status in ["administrator", "creator"]
-    except Exception:
+    except:
         return False
 
 # ===== MAIN HANDLER =====
@@ -59,7 +54,7 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if owner_member.status in ["left", "kicked"]:
                 await update.effective_chat.leave()
                 return
-        except Exception:
+        except:
             await update.effective_chat.leave()
             return
 
@@ -127,10 +122,12 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 return
 
             report = "📋 *Attendance Report*\n\n"
-     for i, data in enumerate(group["users"].values(), 1):
-    username_text = f" (@{escape_markdown(data['username'])})" if data.get("username") else ""
-    report += f"{i}️⃣ *{escape_markdown(data['name'])}*{username_text} ✅ — {data['time']}\n"
-report += f"\n👥 *Total Present:* {len(group['users'])}"
+            for i, data in enumerate(group["users"].values(), 1):
+                username_text = f" (@{escape_markdown(data['username'])})" if data.get("username") else ""
+                report += f"{i}️⃣ *{escape_markdown(data['name'])}*{username_text} ✅ — {data['time']}\n"
+            report += f"\n👥 *Total Present:* {len(group['users'])}"
+
+            await update.message.reply_text(report, parse_mode="Markdown")
 
         # ===== CLEAR ATTENDANCE =====
         elif text == "3":
@@ -141,7 +138,7 @@ report += f"\n👥 *Total Present:* {len(group['users'])}"
             await update.message.reply_text("🗑 *Attendance cleared*", parse_mode="Markdown")
 
     except Exception as e:
-        logging.error("Error occurred", exc_info=True)
+        logging.error(e)
 
 # ===== START BOT =====
 def main():
