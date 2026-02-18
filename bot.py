@@ -74,6 +74,5 @@ def main():
     # Polling works safely in Railway free tier
     app.run_polling(poll_interval=3, timeout=60)
 
-# ✅ Correct indentation here
 if __name__ == "__main__":
     main()
