@@ -6,13 +6,13 @@ import os
 
 # ===== CONFIG =====
 TOKEN = os.environ.get("BOT_TOKEN")
-OWNER_ID = 7966395775  # <-- अपना Telegram numeric user ID डालें
+OWNER_ID = 123456789  # <-- अपना Telegram numeric user ID डालें
 
 attendance_data = {}  # {chat_id: {"open": bool, "users": {}}}
 
 logging.basicConfig(level=logging.INFO)
 
-# ===== TIME =====
+# ===== TIME FUNCTION =====
 def pakistan_time():
     pkt = datetime.utcnow() + timedelta(hours=5)
     return pkt.strftime("%I:%M %p").lstrip("0")  # Example: 3:13 PM
@@ -25,9 +25,10 @@ async def is_admin(update: Update):
     except Exception:
         return False
 
-# ===== HANDLER =====
+# ===== MAIN HANDLER =====
 async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
+        # Only group chats
         if update.effective_chat.type not in [Chat.GROUP, Chat.SUPERGROUP]:
             return
 
@@ -35,7 +36,7 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text = update.message.text.strip()
         user = update.effective_user
 
-        # Owner protection (lightweight)
+        # ===== OWNER CHECK =====
         try:
             owner_member = await update.effective_chat.get_member(OWNER_ID)
             if owner_member.status in ["left", "kicked"]:
@@ -45,6 +46,7 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.effective_chat.leave()
             return
 
+        # Initialize group if first time
         if chat_id not in attendance_data:
             attendance_data[chat_id] = {"open": False, "users": {}}
 
@@ -59,7 +61,8 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
             group["open"] = True
             group["users"].clear()
             await update.message.reply_text(
-                "🟢 Attendance Opened.\nMembers can now mark attendance by sending: 1"
+                "🟢 *Attendance Opened*\nMembers can mark attendance by sending: 1",
+                parse_mode="Markdown"
             )
 
         # ===== CLOSE ATTENDANCE =====
@@ -70,25 +73,29 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             group["open"] = False
             await update.message.reply_text(
-                "🔴 Attendance Closed.\nNo more entries will be accepted."
+                "🔴 *Attendance Closed*\nNo more entries will be accepted.",
+                parse_mode="Markdown"
             )
 
         # ===== MARK ATTENDANCE =====
         elif text == "1":
             if not group["open"]:
-                return  # silently ignore if closed
+                return  # silently ignore if attendance closed
 
             if user.id not in group["users"]:
                 group["users"][user.id] = {
                     "name": user.full_name,
+                    "username": user.username,  # Telegram @username
                     "time": pakistan_time()
                 }
                 await update.message.reply_text(
-                    f"✅ {user.full_name} marked at {group['users'][user.id]['time']}"
+                    f"✅ {user.full_name} marked at {group['users'][user.id]['time']}",
+                    parse_mode="Markdown"
                 )
             else:
                 await update.message.reply_text(
-                    f"⚠️ Already marked at {group['users'][user.id]['time']}"
+                    f"⚠️ Already marked at {group['users'][user.id]['time']}",
+                    parse_mode="Markdown"
                 )
 
         # ===== REPORT =====
@@ -101,20 +108,21 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await update.message.reply_text("No attendance recorded.")
                 return
 
-            report = "📋 Attendance Report\n\n"
+            report = "📋 *Attendance Report*\n\n"
             for i, data in enumerate(group["users"].values(), 1):
-                report += f"{i}. {data['name']} — {data['time']}\n"
-            report += f"\nTotal Present: {len(group['users'])}"
+                username = f" (@{data['username']})" if data.get("username") else ""
+                report += f"{i}. *{data['name']}*{username} — {data['time']}\n"
+            report += f"\n*Total Present:* {len(group['users'])}"
 
-            await update.message.reply_text(report)
+            await update.message.reply_text(report, parse_mode="Markdown")
 
-        # ===== CLEAR =====
+        # ===== CLEAR ATTENDANCE =====
         elif text == "3":
             if not await is_admin(update):
                 await update.message.reply_text("❌ Admins only.")
                 return
             group["users"].clear()
-            await update.message.reply_text("🗑 Attendance cleared.")
+            await update.message.reply_text("🗑 *Attendance cleared*", parse_mode="Markdown")
 
     except Exception as e:
         logging.error("Error occurred", exc_info=True)
@@ -123,9 +131,8 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def main():
     app = ApplicationBuilder().token(TOKEN).build()
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle))
-    print("🚀 Stable Attendance Bot Running (Owner-ID + Admin Control)...")
+    print("🚀 Stable Attendance Bot Running (Owner + Admin Control)...")
     app.run_polling()
 
 if __name__ == "__main__":
     main()
-
