@@ -9,26 +9,23 @@ from telegram.ext import (
 )
 import os
 
+# ====== CONFIG ======
 TOKEN = os.environ.get("BOT_TOKEN")
-
 attendance_data = {}
 
+# ====== LOGGING ======
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     level=logging.INFO
 )
 
+# ====== COMMANDS ======
 async def start_attendance(update: Update, context: ContextTypes.DEFAULT_TYPE):
     attendance_data.clear()
-
-    keyboard = [
-        [InlineKeyboardButton("✅ Mark Attendance", callback_data="mark")]
-    ]
+    keyboard = [[InlineKeyboardButton("✅ Mark Attendance", callback_data="mark")]]
     reply_markup = InlineKeyboardMarkup(keyboard)
-
     await update.message.reply_text(
-        "📢 Attendance Session Started!\n\n"
-        "🕘 Click the button below to mark your attendance.",
+        "📢 Attendance Session Started!\n🕘 Click the button below to mark attendance.",
         reply_markup=reply_markup
     )
 
@@ -36,13 +33,11 @@ async def mark_attendance(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user = query.from_user
     await query.answer()
-
     if user.id not in attendance_data:
         attendance_data[user.id] = {
             "name": user.mention_html(),
             "time": datetime.now().strftime("%H:%M:%S")
         }
-
         await query.message.reply_html(
             f"✅ {attendance_data[user.id]['name']} marked attendance\n"
             f"🕒 Time: {attendance_data[user.id]['time']}"
@@ -54,37 +49,26 @@ async def report(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not attendance_data:
         await update.message.reply_text("❌ No attendance marked today.")
         return
-
     text = "📋 Today's Attendance Report\n\n"
-
     for data in attendance_data.values():
         text += f"👤 {data['name']} | 🕒 {data['time']}\n"
-
     text += f"\n📊 Total Present: {len(attendance_data)}"
-
     await update.message.reply_html(text)
 
 async def clear(update: Update, context: ContextTypes.DEFAULT_TYPE):
     attendance_data.clear()
     await update.message.reply_text("🗑 Attendance cleared successfully.")
 
-async def main():
+# ====== MAIN ======
+def main():
     app = ApplicationBuilder().token(TOKEN).build()
-
     app.add_handler(CommandHandler("start_attendance", start_attendance))
     app.add_handler(CommandHandler("report", report))
     app.add_handler(CommandHandler("clear", clear))
     app.add_handler(CallbackQueryHandler(mark_attendance))
-
     print("Bot is running...")
-    await app.run_polling()
+    # Polling works safely in Railway free
+    app.run_polling(poll_interval=3, timeout=60)
 
-import asyncio
-
-try:
-    loop = asyncio.get_event_loop()
-except RuntimeError:
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-
-loop.run_until_complete(main())
+if name == "main":
+    main()
