@@ -6,7 +6,7 @@ import os
 
 # ===== CONFIG =====
 TOKEN = os.environ.get("BOT_TOKEN")
-OWNER_ID = 7966395775  # <-- apna Telegram numeric ID yahan dalen
+OWNER_ID = 123456789  # <-- apna Telegram numeric ID yahan dalen
 
 attendance_data = {}  # {chat_id: {"open": bool, "users": {}}}
 
@@ -16,6 +16,13 @@ logging.basicConfig(level=logging.INFO)
 def pakistan_time():
     pkt = datetime.utcnow() + timedelta(hours=5)
     return pkt.strftime("%I:%M %p").lstrip("0")  # Example: 3:13 PM
+
+# ===== ESCAPE MARKDOWN =====
+def escape_markdown(text: str) -> str:
+    escape_chars = r"\_*[]()~>#+-=|{}.!"
+    for char in escape_chars:
+        text = text.replace(char, f"\\{char}")
+    return text
 
 # ===== ADMIN CHECK =====
 async def is_admin(update: Update):
@@ -88,9 +95,9 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     "username": user.username,  # Save Telegram @username
                     "time": pakistan_time()
                 }
-                username_text = f" (@{user.username})" if user.username else ""
+                username_text = f" (@{escape_markdown(user.username)})" if user.username else ""
                 await update.message.reply_text(
-                    f"✅ {user.full_name}{username_text} marked at {group['users'][user.id]['time']}",
+                    f"✅ {escape_markdown(user.full_name)}{username_text} marked at {group['users'][user.id]['time']}",
                     parse_mode="Markdown"
                 )
             else:
@@ -111,8 +118,8 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             report = "📋 *Attendance Report*\n\n"
             for i, data in enumerate(group["users"].values(), 1):
-                username = f" (@{data['username']})" if data.get("username") else ""
-                report += f"{i}. *{data['name']}*{username} — {data['time']}\n"
+                username_text = f" (@{escape_markdown(data['username'])})" if data.get("username") else ""
+                report += f"{i}. *{escape_markdown(data['name'])}*{username_text} — {data['time']}\n"
             report += f"\n*Total Present:* {len(group['users'])}"
 
             await update.message.reply_text(report, parse_mode="Markdown")
