@@ -70,5 +70,6 @@ def main():
     # Polling works safely in Railway free
     app.run_polling(poll_interval=3, timeout=60)
 
-if name == "main":
+
+if__name__== "__main__":
     main()
