@@ -1,91 +1,131 @@
 import logging
 from datetime import datetime, timedelta
 from telegram import Update, Chat
-from telegram.ext import (
-    ApplicationBuilder,
-    MessageHandler,
-    filters,
-    ContextTypes,
-)
+from telegram.ext import ApplicationBuilder, MessageHandler, filters, ContextTypes
 import os
 
-# ====== CONFIG ======
+# ===== CONFIG =====
 TOKEN = os.environ.get("BOT_TOKEN")
-attendance_data = {}  # {user_id: {"name":..., "username":..., "time":...}}
+OWNER_ID = 7966395775  # <-- अपना Telegram numeric user ID डालें
 
-# ====== LOGGING ======
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    level=logging.INFO
-)
+attendance_data = {}  # {chat_id: {"open": bool, "users": {}}}
 
-# ====== TIMEZONE ======
+logging.basicConfig(level=logging.INFO)
+
+# ===== TIME =====
 def pakistan_time():
-    return datetime.utcnow() + timedelta(hours=5)
+    pkt = datetime.utcnow() + timedelta(hours=5)
+    return pkt.strftime("%I:%M %p").lstrip("0")  # Example: 3:13 PM
 
-# ====== ADMIN CHECK ======
-async def is_group_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    member = await update.effective_chat.get_member(update.effective_user.id)
-    return member.status in ["administrator", "creator"]
+# ===== ADMIN CHECK =====
+async def is_admin(update: Update):
+    try:
+        member = await update.effective_chat.get_member(update.effective_user.id)
+        return member.status in ["administrator", "creator"]
+    except Exception:
+        return False
 
-# ====== MESSAGE HANDLER ======
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Only respond in groups
-    if update.effective_chat.type not in [Chat.GROUP, Chat.SUPERGROUP]:
-        return  # Ignore private chats
+# ===== HANDLER =====
+async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        if update.effective_chat.type not in [Chat.GROUP, Chat.SUPERGROUP]:
+            return
 
-    text = update.message.text.strip()
-    user = update.effective_user
+        chat_id = update.effective_chat.id
+        text = update.message.text.strip()
+        user = update.effective_user
 
-    if text == "1":
-        # Mark attendance
-        if user.id not in attendance_data:
-            attendance_data[user.id] = {
-                "name": user.full_name,
-                "username": f"@{user.username}" if user.username else "N/A",
-                "time": pakistan_time().strftime("%H:%M:%S")
-            }
-            await update.message.reply_html(
-                f"✅ <b>{attendance_data[user.id]['name']}</b> "
-                f"(<i>{attendance_data[user.id]['username']}</i>) marked attendance!\n"
-                f"🕒 <b>Time (PKT):</b> {attendance_data[user.id]['time']}"
+        # Owner protection (lightweight)
+        try:
+            owner_member = await update.effective_chat.get_member(OWNER_ID)
+            if owner_member.status in ["left", "kicked"]:
+                await update.effective_chat.leave()
+                return
+        except Exception:
+            await update.effective_chat.leave()
+            return
+
+        if chat_id not in attendance_data:
+            attendance_data[chat_id] = {"open": False, "users": {}}
+
+        group = attendance_data[chat_id]
+
+        # ===== OPEN ATTENDANCE =====
+        if text.lower() == "attendance type 1":
+            if not await is_admin(update):
+                await update.message.reply_text("❌ Admins only.")
+                return
+
+            group["open"] = True
+            group["users"].clear()
+            await update.message.reply_text(
+                "🟢 Attendance Opened.\nMembers can now mark attendance by sending: 1"
             )
-        else:
-            await update.message.reply_text("⚠️ You already marked attendance!")
 
-    elif text == "2":
-        # Show report (admins only)
-        if not await is_group_admin(update, context):
-            await update.message.reply_text("❌ Only group admins can use this command.")
-            return
-        if not attendance_data:
-            await update.message.reply_text("❌ No attendance has been marked yet.")
-            return
-        sorted_attendance = sorted(attendance_data.items(), key=lambda x: x[1]["time"])
-        report_text = "📋 <b>Today's Attendance Report</b>\n\n"
-        for i, (_, data) in enumerate(sorted_attendance, start=1):
-            report_text += (
-                f"📝 <b>{i}.</b> {data['name']} (<i>{data['username']}</i>) | "
-                f"🕒 {data['time']}\n"
+        # ===== CLOSE ATTENDANCE =====
+        elif text.lower() == "attendance closed":
+            if not await is_admin(update):
+                await update.message.reply_text("❌ Admins only.")
+                return
+
+            group["open"] = False
+            await update.message.reply_text(
+                "🔴 Attendance Closed.\nNo more entries will be accepted."
             )
-        report_text += f"\n📊 <b>Total Present:</b> {len(attendance_data)}"
-        await update.message.reply_html(report_text)
 
-    elif text == "3":
-        # Clear attendance (admins only)
-        if not await is_group_admin(update, context):
-            await update.message.reply_text("❌ Only group admins can use this command.")
-            return
-        attendance_data.clear()
-        await update.message.reply_text("🗑 Attendance has been cleared successfully!")
+        # ===== MARK ATTENDANCE =====
+        elif text == "1":
+            if not group["open"]:
+                return  # silently ignore if closed
 
-# ====== MAIN ======
+            if user.id not in group["users"]:
+                group["users"][user.id] = {
+                    "name": user.full_name,
+                    "time": pakistan_time()
+                }
+                await update.message.reply_text(
+                    f"✅ {user.full_name} marked at {group['users'][user.id]['time']}"
+                )
+            else:
+                await update.message.reply_text(
+                    f"⚠️ Already marked at {group['users'][user.id]['time']}"
+                )
+
+        # ===== REPORT =====
+        elif text == "2":
+            if not await is_admin(update):
+                await update.message.reply_text("❌ Admins only.")
+                return
+
+            if not group["users"]:
+                await update.message.reply_text("No attendance recorded.")
+                return
+
+            report = "📋 Attendance Report\n\n"
+            for i, data in enumerate(group["users"].values(), 1):
+                report += f"{i}. {data['name']} — {data['time']}\n"
+            report += f"\nTotal Present: {len(group['users'])}"
+
+            await update.message.reply_text(report)
+
+        # ===== CLEAR =====
+        elif text == "3":
+            if not await is_admin(update):
+                await update.message.reply_text("❌ Admins only.")
+                return
+            group["users"].clear()
+            await update.message.reply_text("🗑 Attendance cleared.")
+
+    except Exception as e:
+        logging.error("Error occurred", exc_info=True)
+
+# ===== START BOT =====
 def main():
     app = ApplicationBuilder().token(TOKEN).build()
-    # Handle all text messages (number commands)
-    app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
-    print("🚀 Bot is running...")
-    app.run_polling(poll_interval=3, timeout=60)
+    app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle))
+    print("🚀 Stable Attendance Bot Running (Owner-ID + Admin Control)...")
+    app.run_polling()
 
 if __name__ == "__main__":
     main()
+
