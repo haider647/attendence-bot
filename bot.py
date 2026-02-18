@@ -6,7 +6,7 @@ import os
 
 # ===== CONFIG =====
 TOKEN = os.environ.get("BOT_TOKEN")
-OWNER_ID = 7966395775  # <-- अपना Telegram numeric user ID डालें
+OWNER_ID = 7966395775  # <-- apna Telegram numeric ID yahan dalen
 
 attendance_data = {}  # {chat_id: {"open": bool, "users": {}}}
 
@@ -85,11 +85,12 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if user.id not in group["users"]:
                 group["users"][user.id] = {
                     "name": user.full_name,
-                    "username": user.username,  # Telegram @username
+                    "username": user.username,  # Save Telegram @username
                     "time": pakistan_time()
                 }
+                username_text = f" (@{user.username})" if user.username else ""
                 await update.message.reply_text(
-                    f"✅ {user.full_name} marked at {group['users'][user.id]['time']}",
+                    f"✅ {user.full_name}{username_text} marked at {group['users'][user.id]['time']}",
                     parse_mode="Markdown"
                 )
             else:
