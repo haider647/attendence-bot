@@ -127,12 +127,10 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 return
 
             report = "📋 *Attendance Report*\n\n"
-            for i, data in enumerate(group["users"].values(), 1):
-                username_text = f" (@{escape_markdown(data['username'])})" if data.get("username") else ""
-                report += f"{i}. *{escape_markdown(data['name'])}*{username_text} — {data['time']}\n"
-            report += f"\n*Total Present:* {len(group['users'])}"
-
-            await update.message.reply_text(report, parse_mode="Markdown")
+     for i, data in enumerate(group["users"].values(), 1):
+    username_text = f" (@{escape_markdown(data['username'])})" if data.get("username") else ""
+    report += f"{i}️⃣ *{escape_markdown(data['name'])}*{username_text} ✅ — {data['time']}\n"
+report += f"\n👥 *Total Present:* {len(group['users'])}"
 
         # ===== CLEAR ATTENDANCE =====
         elif text == "3":
