@@ -5,7 +5,7 @@ from telegram.ext import ApplicationBuilder, MessageHandler, filters, ContextTyp
 import os
 
 # ===== CONFIG =====
-TOKEN = os.environ.get("BOT_TOKEN")
+TOKEN = os.environ.get(8535688456:AAEFf5VZwTH98MjydPJDhFJKwztzNpxqfbY)
 OWNER_ID = 7966395775  # <-- apna Telegram numeric ID yahan dalen
 
 attendance_data = {}  # {chat_id: {"open": bool, "users": {}}}
